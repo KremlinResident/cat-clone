@@ -1,5 +1,5 @@
-1. cat clone
 
-    Open files, read into a buffer, write to stdout. Handle multiple args, - for stdin.
+# Cat Clone
 
-    Teaches: open/read/write/close, errno, perror, buffer sizing.
+  Open files, read into a buffer, write to stdout. Handle multiple args, - for stdin.
+  Teaches: open/read/write/close, errno, perror, buffer sizing.
