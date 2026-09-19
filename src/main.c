@@ -19,6 +19,7 @@ static ssize_t getfilesz(const char* pathname);
 
 int main(int argc, char** argv)
 {
+  size_t byteswritten = 0;
   ssize_t filesz = 0;
   char* buffer = NULL;
 
@@ -40,6 +41,10 @@ int main(int argc, char** argv)
     buffer = NULL;
     abort();
   }
+  buffer[filesz] = '\0';
+  while (byteswritten < (size_t)filesz)
+    byteswritten = fwrite(buffer, 1, (size_t)filesz, stdout);
+  printf("\n");
   if (buffer)
   {
     free(buffer);
