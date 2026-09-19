@@ -1,0 +1,28 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang",
+      "-c",
+      "-g",
+      "-std=c17",
+      "-D_POSIX_C_SOURCE=200809L",
+      "-fsanitize=address,leak,undefined",
+      "-fno-omit-frame-pointer",
+      "-Weverything",
+      "-Werror",
+      "-Wno-c++-compat",
+      "-Wno-pre-c11-compat",
+      "-Wno-pessimizing-move",
+      "-Wno-move",
+      "-Wno-nrvo",
+      "-I./src/",
+      "-O0",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/plato/projects/cat-clone",
+    "file": "/home/plato/projects/cat-clone/src/main.c",
+    "output": "/home/plato/projects/cat-clone/build/main.o"
+  }
+]
