@@ -15,6 +15,7 @@
       "-Wno-pessimizing-move",
       "-Wno-move",
       "-Wno-nrvo",
+      "-Wno-unsafe-buffer-usage",
       "-I./src/",
       "-O0",
       "-o",

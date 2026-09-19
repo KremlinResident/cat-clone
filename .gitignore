@@ -56,5 +56,4 @@ dkms.conf
 *.dwo
 
 # vscode stuff
-*.code-workspace
-./.cache
+cat-clone.code-workspace

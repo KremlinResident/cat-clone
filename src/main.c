@@ -1,102 +1,124 @@
-#define _LARGEFILE64_SOURCE
-#include <unistd.h>
-#include <errno.h>
+#include <bits/posix1_lim.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
-#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
-struct buffer
-{
-  char* src;
-  ssize_t sz;
-};
+// USING SSIZE_T FOR POSIX ERROR HANDLING
 
-
-// assume ownership of dest goes to the caller.
-// explicit and doesn't have side effects, only reads the file into dest.
-static int read_file(const char* restrict pathname, char* restrict dest, ssize_t destsz, ssize_t* restrict file_sz_out);
+// Manual and verbose.
+// Mo overflow check, nor null termination.
+// Ownership goes to caller.
+// Returns -1 on error and reports errno.
+static int readfile(const char* pathname, char* dest, ssize_t filesz);
+// Returns -1 on error and reports errno.
+static ssize_t getfilesz(const char* pathname);
 
 int main(int argc, char** argv)
 {
-  struct buffer bf = {0};
   ssize_t filesz = 0;
-  printf("arg1:pathname\n");
-  if (argc != 2)
-  {
-    fprintf(stderr, "args must only be 2, CLI itself and pathname\n");
-    exit(EXIT_FAILURE);
-  }
-  bf.sz = 4096;
-  bf.src = malloc((size_t)bf.sz + 1); // \0
-  if (!bf.src)
-    exit(EXIT_FAILURE);
+  char* buffer = NULL;
 
-  // NOTE: faulty static analysis
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunsafe-buffer-usage"
-  read_file(argv[1], bf.src, bf.sz, &filesz);
-  bf.src[filesz] = '\0';
-#pragma clang diagnostic pop
-  printf("%s\n", bf.src);
-  exit(EXIT_SUCCESS);
+  if (argc != 2) {
+    fprintf(stderr, "cat-clone: arg1:[pathname]");
+    return -1;
+  }
+  
+  filesz = getfilesz(argv[1]);
+  if (filesz == -1)
+    abort();
+
+  buffer = malloc((size_t)filesz + 1); // \0
+  if (!buffer)
+    abort();
+  if (readfile(argv[1], buffer, filesz) == -1)
+  {
+    free(buffer);
+    buffer = NULL;
+    abort();
+  }
+  if (buffer)
+  {
+    free(buffer);
+    buffer = NULL;
+  }
+  return 0;
 }
 
-static int read_file(const char* restrict pathname, char* restrict dest, ssize_t destsz, ssize_t* restrict file_sz_out)
+static int readfile(const char* pathname, char* dest, ssize_t filesz)
 {
-  int savederrno = errno;
-  int retval = 0;
-  
-  char* tmpdest = NULL;
-  ssize_t bytesread = 0;
-  off_t filesz = 0;
   int fd = open(pathname, O_RDONLY);
+  int retval = 0;
+  ssize_t bytesread = 0;
+
+  if (filesz < 0 || filesz >= SSIZE_MAX - 1)
+  {
+    fprintf(stderr, "invalid filesz, filesz:%zi\n", filesz);
+    retval = -1;
+    goto cleanup;
+  }
+
   if (fd == -1)
   {
-    perror("open file");
+    perror("error open file");
     retval = -1;
     goto cleanup;
   }
-  if (destsz < 0)
-  {
-    fprintf(stderr, "size can't equal zero\n destsz is ssize_t (aka long) for POSIX handling only\n");
-    retval = -1;
-    goto cleanup;
-  }
-  if ((filesz = lseek(fd, 0, SEEK_END)) == -1)
-  {
-    perror("unseekable file descriptor");
-    retval = -1;
-    goto cleanup;
-  }
-  lseek(fd, 0, SEEK_SET);
 
-  // using > assuming null termination is manual
-  if (filesz > destsz)
+  // read the file in a loop if bytesread != 0 (EOF) or -1 (error)
+  while ((bytesread = read(fd, dest, (size_t)filesz)) > 0)
   {
-    fprintf(stderr, "filesz bigger than destsz, filesz:%zi, destsz:%zi\n", filesz, destsz);
-    retval = -1;
-    goto cleanup;
+    if (bytesread == -1)
+    {
+      if (errno == EINTR)
+        continue;
+      else
+      {
+        perror("file reading into buffer could not be done");
+        retval = -1;
+        goto cleanup;
+      }
+    }
   }
-  tmpdest = dest;
-  bytesread = read(fd, tmpdest, (size_t)destsz);
-  if (bytesread == -1)
-  {
-    perror("POSIX read function");
-    retval = -1;
-    goto cleanup;
-  }
-  if (bytesread < filesz)
-  {
-    fprintf(stderr, "partial read, bytes:%zi\n", bytesread);
-    retval = -1;
-    goto cleanup;
-  }
-  dest = tmpdest;
-  *file_sz_out = filesz;
+
+  goto cleanup;
 cleanup:
   if (fd != -1)
-    close(fd);
-  errno = savederrno;
+    if (close(fd) == -1)
+    {
+      perror("close file");
+      retval = -1;
+    }
+  return retval;
+}
+
+static ssize_t getfilesz(const char* pathname)
+{
+  int fd = open(pathname, O_RDONLY);
+  ssize_t retval = 0;
+  if (fd == -1)
+  {
+    perror("error open file for getting size");
+    retval = -1;
+    goto cleanup;
+  }
+  retval = (ssize_t)lseek(fd, 0, SEEK_END);
+  if (retval == -1)
+  {
+    perror("error lseek()ing file");
+    goto cleanup;
+  }
+
+  goto cleanup;
+cleanup:
+  if (fd != -1)
+    if (close(fd) == -1)
+    {
+      perror("close file");
+      retval = -1;
+    }
   return retval;
 }
