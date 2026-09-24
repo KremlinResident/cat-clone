@@ -1,129 +1,56 @@
-#include <bits/posix1_lim.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-#include <errno.h>
 
-// USING SSIZE_T FOR POSIX ERROR HANDLING
+static const size_t BUFSZ = 4096*4;
 
-// Manual and verbose.
-// Mo overflow check, nor null termination.
-// Ownership goes to caller.
-// Returns -1 on error and reports errno.
-static int readfile(const char* pathname, char* dest, ssize_t filesz);
-// Returns -1 on error and reports errno.
-static ssize_t getfilesz(const char* pathname);
+static int openfd(const char* pathname, int oflags);
+static int readfd(int fd, void* buf, size_t n);
 
 int main(int argc, char** argv)
 {
-  size_t byteswritten = 0;
-  ssize_t filesz = 0;
-  char* buffer = NULL;
-
-  if (argc != 2) {
-    fprintf(stderr, "cat-clone: arg1:[pathname]");
+  int fd = 0;
+  int bytesread = 0;
+  char* buf = malloc(BUFSZ);
+  if (argc != 2)
+  {
+    const char* errmessage = "cat-clone: arg1(pathname)\n";
+    write(STDERR_FILENO, errmessage, strlen(errmessage));
     return -1;
   }
-  
-  filesz = getfilesz(argv[1]);
-  if (filesz == -1)
-    abort();
+  fd = openfd(argv[1], O_RDONLY);
 
-  buffer = malloc((size_t)filesz + 1); // \0
-  if (!buffer)
-    abort();
-  if (readfile(argv[1], buffer, filesz) == -1)
-  {
-    free(buffer);
-    buffer = NULL;
-    abort();
-  }
-  buffer[filesz] = '\0';
-  while (byteswritten < (size_t)filesz)
-    byteswritten = fwrite(buffer, 1, (size_t)filesz, stdout);
-  printf("\n");
-  if (buffer)
-  {
-    free(buffer);
-    buffer = NULL;
-  }
+  close(fd);
+  free(buf);
   return 0;
 }
-
-static int readfile(const char* pathname, char* dest, ssize_t filesz)
+static int openfd(const char* pathname, int oflags)
 {
-  int fd = open(pathname, O_RDONLY);
-  int retval = 0;
-  ssize_t bytesread = 0;
-
-  if (filesz < 0 || filesz >= SSIZE_MAX - 1)
-  {
-    fprintf(stderr, "invalid filesz, filesz:%zi\n", filesz);
-    retval = -1;
-    goto cleanup;
-  }
-
+  int fd = open(pathname, oflags);
   if (fd == -1)
   {
-    perror("error open file");
-    retval = -1;
-    goto cleanup;
+    perror("open file failure");
+    return -1;
   }
-
-  // read the file in a loop if bytesread != 0 (EOF) or -1 (error)
-  while ((bytesread = read(fd, dest, (size_t)filesz)) > 0)
-  {
-    if (bytesread == -1)
-    {
-      if (errno == EINTR)
-        continue;
-      else
-      {
-        perror("file reading into buffer could not be done");
-        retval = -1;
-        goto cleanup;
-      }
-    }
-  }
-
-  goto cleanup;
-cleanup:
-  if (fd != -1)
-    if (close(fd) == -1)
-    {
-      perror("close file");
-      retval = -1;
-    }
-  return retval;
+  return fd;
 }
-
-static ssize_t getfilesz(const char* pathname)
+static int readfd(int fd, void* buf, size_t n)
 {
-  int fd = open(pathname, O_RDONLY);
-  ssize_t retval = 0;
-  if (fd == -1)
+  int bytesread = 0;
+  if (n == SIZE_MAX)
   {
-    perror("error open file for getting size");
-    retval = -1;
-    goto cleanup;
+    fprintf(stderr, "can't read by SIZE_MAX chunks");
+    return -1;
   }
-  retval = (ssize_t)lseek(fd, 0, SEEK_END);
-  if (retval == -1)
+  while (true)
   {
-    perror("error lseek()ing file");
-    goto cleanup;
+  
   }
-
-  goto cleanup;
-cleanup:
-  if (fd != -1)
-    if (close(fd) == -1)
-    {
-      perror("close file");
-      retval = -1;
-    }
-  return retval;
+  return bytesread;
 }
+
