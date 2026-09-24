@@ -1,56 +1,33 @@
-#include <stdbool.h>
 #include <fcntl.h>
-#include <limits.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <stdbool.h>
 
-static const size_t BUFSZ = 4096*4;
-
-static int openfd(const char* pathname, int oflags);
-static int readfd(int fd, void* buf, size_t n);
+// prints errno and returns -1 on error, and the file descriptor itself on success.
+static int openfd(const char* path, int oflags);
 
 int main(int argc, char** argv)
 {
-  int fd = 0;
-  int bytesread = 0;
-  char* buf = malloc(BUFSZ);
+  const char* path = NULL;
   if (argc != 2)
   {
-    const char* errmessage = "cat-clone: arg1(pathname)\n";
-    write(STDERR_FILENO, errmessage, strlen(errmessage));
+    fprintf(stderr, "cat-clone:arg1(pathname)\n");
     return -1;
   }
-  fd = openfd(argv[1], O_RDONLY);
+  path = argv[1];
 
-  close(fd);
-  free(buf);
+  // ---------------------------reading and writing-----------------------------
+  
+
+
   return 0;
 }
-static int openfd(const char* pathname, int oflags)
+static int openfd(const char* path, int oflags)
 {
-  int fd = open(pathname, oflags);
+  int fd = open(path, oflags);
   if (fd == -1)
   {
-    perror("open file failure");
-    return -1;
+    perror("failure to open file descriptor");
   }
-  return fd;
+  return fd;  
 }
-static int readfd(int fd, void* buf, size_t n)
-{
-  int bytesread = 0;
-  if (n == SIZE_MAX)
-  {
-    fprintf(stderr, "can't read by SIZE_MAX chunks");
-    return -1;
-  }
-  while (true)
-  {
-  
-  }
-  return bytesread;
-}
-
